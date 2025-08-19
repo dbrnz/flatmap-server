@@ -343,11 +343,11 @@ class Manager(threading.Thread):
     #====================
         while not self.__terminate_event.is_set():
             if self.__running_process is not None:
-                async with self.__process_lock:
-                    process = self.__running_process
-                    ##process.read_process_log_queue()
-                    process.read_log_receiver()
-                    if not process.is_alive():
+                process = self.__running_process
+                ##process.read_process_log_queue()
+                process.read_log_receiver()
+                if not process.is_alive():
+                    async with self.__process_lock:
                         process.close()                                 # This updates status
                         self.__last_log_lines = self.__get_log_lines()
                         self.__last_running_process_id = process.id
