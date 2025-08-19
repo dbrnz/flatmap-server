@@ -91,21 +91,32 @@ def log_file_name(pid):
 
 def _run_in_loop(func, *args):
 #=============================
+    print('making new event loop...')
     loop = uvloop.new_event_loop()
+    print('about to run new loop...')
     loop.run_until_complete(func(*args))
+    print('new event loop completed...')
 
 async def _make_map(params, logger_port: Optional[int], process_log_queue: Optional[multiprocessing.Queue]):
 #===========================================================================================================
+    print('making map starting...')
     try:
+        print('getting a mapmaker...')
         mapmaker = MapMaker(params, logger_port=logger_port, process_log_queue=process_log_queue)
+        print('making the map...')
         mapmaker.make()
+        print('map making finished...')
     except Exception as e:
+        print('making map exception', str(e))
         utils.log.exception(e, exc_info=True)
         ## And now we need to send a CRITICAL failed message onto the msg_queue...
         ## as any raised exception will end up here
         ## e.g. ???
         ## {"exc_info": true, "level": "error", "timestamp": "2025-08-18T08:01:06.842287Z", "msg": "GitCommandError(['git', 'checkout', 'staging'], 1, b\"error: pathspec 'staging' did not match any file(s) known to git\", b'')"}
         sys.exit(1)
+    print('making map all done...')
+
+#===============================================================================
 
 #===============================================================================
 
@@ -381,10 +392,11 @@ class Manager(threading.Thread):
 
     async def __start_process(self, process: MakerProcess):
     #======================================================
-        print('started process', process.id)
         async with self.__process_lock:
             print('Got lock at start time...')
+            print('starting process...')
             process.start()
+            print('started process', process.id)
             self.__running_process = process
             self.__last_running_process_id = None
         print('Released lock at start time...')
