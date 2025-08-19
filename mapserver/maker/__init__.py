@@ -29,7 +29,6 @@ import os
 import queue
 import socket
 import struct
-import sys
 import threading
 from typing import Any, Optional
 import uuid
@@ -113,7 +112,6 @@ async def _make_map(params, logger_port: Optional[int], process_log_queue: Optio
         ## as any raised exception will end up here
         ## e.g. ???
         ## {"exc_info": true, "level": "error", "timestamp": "2025-08-18T08:01:06.842287Z", "msg": "GitCommandError(['git', 'checkout', 'staging'], 1, b\"error: pathspec 'staging' did not match any file(s) known to git\", b'')"}
-        sys.exit(1)
     print('making map all done...')
 
 #===============================================================================
