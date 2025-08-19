@@ -98,6 +98,7 @@ def initialise(app: Litestar):
 #===============================================================================
 
 def terminate(app: Litestar):
+    print('server terminate called...')
     end_maker()
     terminate_competency_update()
     settings['LOGGER'].info(f'Shutdown flatmap server...')
