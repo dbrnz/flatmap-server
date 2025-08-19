@@ -337,10 +337,12 @@ class Manager(threading.Thread):
 
     def run(self):
     #=============
+        print('Manager thread starting...')
         self.__loop.run_until_complete(self._run())
 
     async def _run(self):
     #====================
+        print('Manager thread running...')
         while not self.__terminate_event.is_set():
             if self.__running_process is not None:
                 process = self.__running_process
@@ -358,11 +360,14 @@ class Manager(threading.Thread):
                             self.__log.info(f'Mapmaker succeeded: {process.name}, Map {info}')
                         else:
                             self.__log.error(f'Mapmaker FAILED: {process.name}')
+                        print('Closed process', self.__last_running_process_id)
                         self.__running_process = None
             await asyncio.sleep(0.01)
+        print('Manager thread terminated...')
 
     def terminate(self):
     #===================
+        print('Manager thread set terminate...')
         self.__terminate_event.set()
 
     async def status(self, id) -> MakerStatus:
@@ -381,9 +386,12 @@ class Manager(threading.Thread):
     async def __start_process(self, process: MakerProcess):
     #======================================================
         process.start()
+        print('started process', process.id)
         async with self.__process_lock:
+            print('Got lock at start time...')
             self.__running_process = process
             self.__last_running_process_id = None
+        print('Released lock at start time...')
         self.__log.info(f'Started mapmaker process: {process.name}, PID: {process.process_id}')
 
 #===============================================================================

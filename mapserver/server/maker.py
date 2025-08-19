@@ -56,7 +56,9 @@ def initialise():
 def terminate():
 #===============
     global map_maker
+    print('Terminating server...')
     if map_maker is not None:
+        print('Terminating map maker manager...')
         map_maker.terminate()
         map_maker = None
 
