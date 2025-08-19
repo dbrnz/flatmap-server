@@ -246,10 +246,12 @@ class MakerProcess(multiprocessing.Process):
         except TimeoutError:
             return
 
-    def start(self):
-    #===============
+    def start_maker(self):
+    #=====================
         self.__status = 'running'
+        print('starting target process...')
         super().start()
+        print('started target process', self.pid)
         self.__process_id = self.pid
         self.__log_file = log_file_name(self.pid)
 
@@ -393,7 +395,7 @@ class Manager(threading.Thread):
         async with self.__process_lock:
             print('Got lock at start time...')
             print('starting process...')
-            process.start()
+            process.start_maker()
             print('started process', process.id)
             self.__running_process = process
             self.__last_running_process_id = None
