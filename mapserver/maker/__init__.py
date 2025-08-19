@@ -84,7 +84,7 @@ class MakerLogResponse(MakerStatus):
 
 #===============================================================================
 
-def log_file(pid):
+def log_file_name(pid):
     return os.path.join(settings['MAPMAKER_LOGS'], f'{pid}.log.json')
 
 #===============================================================================
@@ -172,10 +172,6 @@ class MakerProcess(multiprocessing.Process):
         return self.__status in ['terminated', 'aborted']
 
     @property
-    def log_file(self):
-        return self.__log_file
-
-    @property
     def id(self):
         return self.__id
 
@@ -246,7 +242,7 @@ class MakerProcess(multiprocessing.Process):
         self.__status = 'running'
         super().start()
         self.__process_id = self.pid
-        self.__log_file = log_file(self.pid)
+        self.__log_file = log_file_name(self.pid)
 
 #===============================================================================
 
@@ -274,7 +270,7 @@ class Manager(threading.Thread):
 
     async def process_log(self, pid: int):
     #=====================================
-        filename = log_file(pid)
+        filename = log_file_name(pid)
         if os.path.exists(filename):
             with open(filename) as fp:
                 return fp.read()
