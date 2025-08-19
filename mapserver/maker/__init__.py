@@ -381,10 +381,10 @@ class Manager(threading.Thread):
 
     async def __start_process(self, process: MakerProcess):
     #======================================================
-        process.start()
         print('started process', process.id)
         async with self.__process_lock:
             print('Got lock at start time...')
+            process.start()
             self.__running_process = process
             self.__last_running_process_id = None
         print('Released lock at start time...')
