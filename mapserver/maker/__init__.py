@@ -136,7 +136,14 @@ class LogReceiver:
 
     def close(self):
     #===============
+        self.close_connection()
         self.__socket.close()
+
+    def close_connection(self):
+    #==========================
+        if self.__connection is not None:
+            self.__connection.close()
+            self.__connection = None
 
     def recv(self) -> Optional[logging.LogRecord]:
     #=============================================
@@ -161,10 +168,10 @@ class LogReceiver:
 #===============================================================================
 
 class MakerProcess(multiprocessing.Process):
-    def __init__(self, params: dict[str, Any], msg_queue: multiprocessing.Queue):
+    def __init__(self, params: dict[str, Any], log_receiver: LogReceiver, msg_queue: multiprocessing.Queue):
         id = str(uuid.uuid4())
-        self.__log_receiver = LogReceiver()
-        super().__init__(target=_run_in_loop, args=(_make_map, params, self.__log_receiver.port), name=id)
+        self.__log_receiver = log_receiver
+        super().__init__(target=_run_in_loop, args=(_make_map, params, log_receiver.port), name=id)
         self.__id = id
         self.__process_id = None
         self.__log_file = None
@@ -203,7 +210,7 @@ class MakerProcess(multiprocessing.Process):
             self.__status = 'terminated'
         else:
             self.__status = 'aborted'
-        self.__log_receiver.close()
+        self.__log_receiver.close_connection()
         super().join()
         super().close()
 
@@ -255,6 +262,7 @@ class Manager(threading.Thread):
         self.__last_log_lines: Optional[str] = None
         self.__last_running_process_id: Optional[str] = None
         self.__last_running_process_status: str = 'terminated'
+        self.__log_receiver = LogReceiver()
         self.__process_msg_queue = multiprocessing.Queue()
 
         self.__running_process: Optional[MakerProcess] = None
@@ -321,7 +329,7 @@ class Manager(threading.Thread):
         })
         if self.__running_process is None:
             self.__flush_process_log()
-            process = MakerProcess(params, self.__process_msg_queue)
+            process = MakerProcess(params, self.__log_receiver, self.__process_msg_queue)
             await self.__start_process(process)
             return self.status(process.id)
         else:
@@ -357,6 +365,7 @@ class Manager(threading.Thread):
                         print('Closed process', self.__last_running_process_id)
                         self.__running_process = None
             await asyncio.sleep(0.01)
+        self.__log_receiver.close()
         print('Manager thread terminated...')
 
     def terminate(self):
