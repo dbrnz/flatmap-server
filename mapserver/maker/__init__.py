@@ -357,7 +357,9 @@ class Manager(threading.Thread):
             if self.__running_process is not None:
                 process = self.__running_process
                 ##process.read_process_log_queue()
+                print('1', process.is_alive())
                 process.read_log_receiver()
+                print('2', process.is_alive())
                 if not process.is_alive():
                     print('Process not alive...')
                     async with self.__process_lock:
