@@ -142,6 +142,7 @@ class LogReceiver:
     def close_connection(self):
     #==========================
         if self.__connection is not None:
+            self.__connection.shutdown(socket.SHUT_RDWR)
             self.__connection.close()
             self.__connection = None
 
