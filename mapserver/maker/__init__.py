@@ -129,6 +129,7 @@ class LogReceiver:
             except OSError:
                 self.__port += 1
         self.__connection = None
+        print('logger listening at port', self.__port)
 
     @property
     def port(self):
@@ -142,6 +143,7 @@ class LogReceiver:
     def close_connection(self):
     #==========================
         if self.__connection is not None:
+            print('closing logger connection')
             self.__connection.shutdown(socket.SHUT_RDWR)
             self.__connection.close()
             self.__connection = None
@@ -151,6 +153,7 @@ class LogReceiver:
         if self.__connection is None:
             self.__socket.settimeout(0.1)
             (self.__connection, _) = self.__socket.accept()
+            print('got new logger connection')
 
         self.__connection.settimeout(0.01)
         chunk = self.__connection.recv(4)
