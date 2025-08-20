@@ -389,6 +389,7 @@ class Manager(threading.Thread):
             self.__last_running_process_id = None
         else:
             status = 'unknown'
+        print('got status of', status)
         return MakerStatus(status, id, pid)
 
     async def __start_process(self, process: MakerProcess):
