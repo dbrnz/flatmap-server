@@ -341,6 +341,7 @@ class Manager(threading.Thread):
             await self.__start_process(process)
             return self.status(process.id)
         else:
+            print('Process running:', self.__running_process)
             return MakerStatus('queued', None, None)
 
     def run(self):
@@ -357,7 +358,9 @@ class Manager(threading.Thread):
                 ##process.read_process_log_queue()
                 process.read_log_receiver()
                 if not process.is_alive():
+                    print('Process not alive...')
                     async with self.__process_lock:
+                        print('Closing process...')
                         process.close()                                 # This updates status
                         self.__last_log_lines = self.__get_log_lines()
                         self.__last_running_process_id = process.id
