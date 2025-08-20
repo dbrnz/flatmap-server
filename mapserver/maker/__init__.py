@@ -142,6 +142,7 @@ class LogReceiver:
     def recv(self) -> Optional[logging.LogRecord]:
     #=============================================
         if self.__connection is None:
+            self.__socket.settimeout(0.1)
             (self.__connection, _) = self.__socket.accept()
 
         self.__connection.settimeout(0.01)
