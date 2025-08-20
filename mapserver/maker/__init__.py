@@ -96,7 +96,7 @@ def _run_in_loop(func, *args):
 async def _make_map(params, logger_port: Optional[int]):
 #=======================================================
     try:
-        mapmaker = MapMaker(params, logger_port=logger_port)
+        mapmaker = MapMaker(params) ##, logger_port=logger_port)
         mapmaker.make()
     except Exception as e:
         utils.log.exception(e, exc_info=True)
@@ -159,6 +159,7 @@ class MakerProcess(multiprocessing.Process):
         self.__process_id = None
         self.__log_file = None
         self.__msg_queue = msg_queue
+        self.__next_log_line = 0
         self.__status = 'queued'
         self.__result = {}
 
@@ -204,6 +205,21 @@ class MakerProcess(multiprocessing.Process):
             if self.__log_file is not None:
                 os.remove(self.__log_file)
                 self.__log_file = None
+
+    def read_log_lines(self):
+    #========================
+        if (filename := self.__log_file) is not None and os.path.exists(filename):
+            with open(filename) as fp:
+                log_lines = fp.read().split('\n')
+                for log_line in log_lines[self.__next_log_line:]:
+                    self.__next_log_line += 1
+                    if log_line:
+                        message = json.loads(log_line)
+                        if message.get('level') == 'critical':
+                            if message.get('msg', '').startswith('Mapmaker succeeded'):
+                                self.__result = { key: value for key in MAKER_RESULT_KEYS
+                                                    if (value := message.get(key)) is not None }
+                        self.__msg_queue.put(message)
 
     def read_log_receiver(self):
     #===========================
@@ -324,8 +340,10 @@ class Manager(threading.Thread):
             if self.__running_process is not None:
                 async with self.__process_lock:
                     process = self.__running_process
-                    process.read_log_receiver()
+                    process.read_log_lines()
                     if not process.is_alive():
+                        await asyncio.sleep(0.5)                        # Allowslog file to be flushed
+                        process.read_log_lines()
                         process.close()                                 # This updates status
                         self.__last_log_lines = self.__get_log_lines()
                         self.__last_running_process_id = process.id
