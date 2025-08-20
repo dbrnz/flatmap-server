@@ -194,6 +194,7 @@ class MakerProcess(multiprocessing.Process):
 
     @property
     def status(self) -> str:
+        print('status', self.__status)
         return self.__status
 
     def close(self):
@@ -338,7 +339,7 @@ class Manager(threading.Thread):
             self.__flush_process_log()
             process = MakerProcess(params, self.__process_msg_queue)
             await self.__start_process(process)
-            return await self.status(process.id)
+            return self.status(process.id)
         else:
             return MakerStatus('queued', None, None)
 
@@ -377,8 +378,8 @@ class Manager(threading.Thread):
         print('Manager thread set terminate...')
         self.__terminate_event.set()
 
-    async def status(self, id) -> MakerStatus:
-    #=========================================
+    def status(self, id) -> MakerStatus:
+    #===================================
         pid = None
         if self.__running_process is not None and id == self.__running_process.id:
             status = self.__running_process.status
