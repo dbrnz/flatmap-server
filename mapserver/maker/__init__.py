@@ -28,6 +28,7 @@ import pickle
 import os
 import queue
 import socket
+import socketserver
 import struct
 import threading
 from typing import Any, Optional
@@ -119,17 +120,42 @@ async def _make_map(params, logger_port: Optional[int]):
 
 LOG_PORT_OFFSET = 900
 
+class LogStreamHandler(socketserver.StreamRequestHandler):
+    def handle(self):
+        """
+        Handle multiple requests - each expected to be a 4-byte length,
+        followed by the LogRecord in pickle format. Logs the record
+        according to whatever policy is configured locally.
+        """
+        while True:
+            chunk = self.request.recv(4)
+            if len(chunk) < 4:
+                break
+            slen = struct.unpack('>L', chunk)[0]
+            chunk = self.request.recv(slen)
+            while len(chunk) < slen:
+                chunk = chunk + self.request.recv(slen - len(chunk))
+            obj = pickle.loads(chunk)
+            record = logging.makeLogRecord(obj)
+
+            print(record)
+##            self.handleLogRecord(record)
+
+
 class LogReceiver:
     def __init__(self):
         self.__port = int(settings['SERVER_PORT']) + LOG_PORT_OFFSET
         while True:
             try:
-                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.__socket.bind(('localhost', self.__port))
+                self.__server = socketserver.TCPServer(('localhost', self.__port),
+                    LogStreamHandler,
+                    bind_and_activate=True)
+#                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#                self.__socket.bind(('localhost', self.__port))
                 break
             except OSError:
                 self.__port += 1
-        self.__connection = None
+#        self.__connection = None
         print('logger listening at port', self.__port)
 
     @property
@@ -138,8 +164,10 @@ class LogReceiver:
 
     def close(self):
     #===============
-        self.close_connection()
-        self.__socket.close()
+        self.__server.shutdown()
+        self.__server.server_close()
+#        self.close_connection()
+#        self.__socket.close()
 
     def close_connection(self):
     #==========================
@@ -149,31 +177,31 @@ class LogReceiver:
             self.__connection.close()
             self.__connection = None
 
-    def new_connection(self):
-    #========================
-        self.close_connection()
-        self.__socket.listen(1)
-
-    def recv(self) -> Optional[logging.LogRecord]:
-    #=============================================
-        if self.__connection is None:
-            self.__socket.settimeout(0.1)
-            (self.__connection, _) = self.__socket.accept()
-            print('got new logger connection')
-
-        self.__connection.settimeout(0.01)
-        chunk = self.__connection.recv(4)
-        if len(chunk) < 4:
-            return None     # EOF
-
-        slen = struct.unpack('>L', chunk)[0]
-        self.__connection.settimeout(0.0)
-        chunk = self.__connection.recv(slen)
-        while len(chunk) < slen:
-            chunk = chunk + self.__connection.recv(slen - len(chunk))
-        data = pickle.loads(chunk)
-        record = logging.makeLogRecord(data)
-        return record
+##    def new_connection(self):
+##    #========================
+##        self.close_connection()
+##        self.__socket.listen(128)
+##
+##    def recv(self) -> Optional[logging.LogRecord]:
+##    #=============================================
+##        if self.__connection is None:
+##            self.__socket.settimeout(0.1)
+##            (self.__connection, _) = self.__socket.accept()
+##            print('got new logger connection')
+##
+##        self.__connection.settimeout(0.01)
+##        chunk = self.__connection.recv(4)
+##        if len(chunk) < 4:
+##            return None     # EOF
+##
+##        slen = struct.unpack('>L', chunk)[0]
+##        self.__connection.settimeout(0.0)
+##        chunk = self.__connection.recv(slen)
+##        while len(chunk) < slen:
+##            chunk = chunk + self.__connection.recv(slen - len(chunk))
+##        data = pickle.loads(chunk)
+##        record = logging.makeLogRecord(data)
+##        return record
 
 #===============================================================================
 
@@ -236,7 +264,7 @@ class MakerProcess(multiprocessing.Process):
     def read_log_receiver(self):
     #===========================
         try:
-            log_record = self.__log_receiver.recv()
+            log_record = None ## self.__log_receiver.recv()
             if log_record is None:
                 return
             message = json.loads(log_record.msg)
@@ -252,7 +280,7 @@ class MakerProcess(multiprocessing.Process):
     #=====================
         self.__status = 'running'
         print('starting target process...')
-        self.__log_receiver.new_connection()
+##        self.__log_receiver.new_connection()
         super().start()
         print('started target process', self.pid)
         self.__process_id = self.pid
