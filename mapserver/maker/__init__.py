@@ -124,7 +124,7 @@ class LogReceiver:
         self.__port = int(settings['SERVER_PORT']) + LOG_PORT_OFFSET
         while True:
             try:
-                self.__socket = socket.create_server(('localhost', self.__port))
+                self.__socket = socket.create_server(('localhost', self.__port), reuse_port=True)
                 break
             except OSError:
                 self.__port += 1
