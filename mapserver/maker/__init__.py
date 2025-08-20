@@ -124,8 +124,8 @@ class LogReceiver:
         self.__port = int(settings['SERVER_PORT']) + LOG_PORT_OFFSET
         while True:
             try:
-                self.__socket = socket.create_server(('localhost', self.__port),
-                                                      backlog=128, reuse_port=True)
+                self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.__socket.bind(('localhost', self.__port))
                 break
             except OSError:
                 self.__port += 1
@@ -148,6 +148,11 @@ class LogReceiver:
             self.__connection.shutdown(socket.SHUT_RDWR)
             self.__connection.close()
             self.__connection = None
+
+    def new_connection(self):
+    #========================
+        self.close_connection()
+        self.__socket.listen(1)
 
     def recv(self) -> Optional[logging.LogRecord]:
     #=============================================
@@ -247,6 +252,7 @@ class MakerProcess(multiprocessing.Process):
     #=====================
         self.__status = 'running'
         print('starting target process...')
+        self.__log_receiver.new_connection()
         super().start()
         print('started target process', self.pid)
         self.__process_id = self.pid
