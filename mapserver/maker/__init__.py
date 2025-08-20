@@ -96,12 +96,12 @@ def _run_in_loop(func, *args):
     loop.run_until_complete(func(*args))
     print('new event loop completed...')
 
-async def _make_map(params, logger_port: Optional[int], process_log_queue: Optional[multiprocessing.Queue]):
-#===========================================================================================================
+async def _make_map(params, logger_port: Optional[int]):
+#=======================================================
     print('making map starting...')
     try:
         print('getting a mapmaker...')
-        mapmaker = MapMaker(params, logger_port=logger_port, process_log_queue=process_log_queue)
+        mapmaker = MapMaker(params, logger_port=logger_port)
         print('making the map...')
         mapmaker.make()
         print('map making finished...')
@@ -115,7 +115,6 @@ async def _make_map(params, logger_port: Optional[int], process_log_queue: Optio
     print('making map all done...')
 
 #===============================================================================
-
 #===============================================================================
 
 LOG_PORT_OFFSET = 900
@@ -165,8 +164,7 @@ class MakerProcess(multiprocessing.Process):
     def __init__(self, params: dict[str, Any], msg_queue: multiprocessing.Queue):
         id = str(uuid.uuid4())
         self.__log_receiver = LogReceiver()
-        self.__process_log_queue = multiprocessing.Queue()
-        super().__init__(target=_run_in_loop, args=(_make_map, params, self.__log_receiver.port, self.__process_log_queue), name=id)
+        super().__init__(target=_run_in_loop, args=(_make_map, params, self.__log_receiver.port), name=id)
         self.__id = id
         self.__process_id = None
         self.__log_file = None
@@ -206,7 +204,6 @@ class MakerProcess(multiprocessing.Process):
         else:
             self.__status = 'aborted'
         self.__log_receiver.close()
-        self.__process_log_queue.close()
         super().join()
         super().close()
 
@@ -218,20 +215,6 @@ class MakerProcess(multiprocessing.Process):
             if self.__log_file is not None:
                 os.remove(self.__log_file)
                 self.__log_file = None
-
-    def read_process_log_queue(self):
-    #================================
-        while True:
-            try:
-                log_record = self.__process_log_queue.get(block=False)
-                message = json.loads(log_record.msg)
-                if log_record.levelno == logging.CRITICAL:
-                    if message['msg'].startswith('Mapmaker succeeded'):
-                        self.__result = { key: value for key in MAKER_RESULT_KEYS
-                                            if (value := message.get(key)) is not None }
-                self.__msg_queue.put(message)
-            except queue.Empty:
-                return
 
     def read_log_receiver(self):
     #===========================
@@ -371,9 +354,9 @@ class Manager(threading.Thread):
                         if len(process.result):
                             info = ', '.join([ f'{key}: {value}' for key in MAKER_RESULT_KEYS
                                             if (value := process.result.get(key)) is not None ])
-                            self.__log.info(f'Mapmaker succeeded: {process.name}, Map {info}')
+                            self.__log.info(f'Mapmaker succeeded: {process.id}, Map {info}')
                         else:
-                            self.__log.error(f'Mapmaker FAILED: {process.name}')
+                            self.__log.error(f'Mapmaker FAILED: {process.id}')
                         print('Closed process', self.__last_running_process_id)
                         self.__running_process = None
             await asyncio.sleep(0.01)
@@ -408,7 +391,7 @@ class Manager(threading.Thread):
             self.__running_process = process
             self.__last_running_process_id = None
         print('Released lock at start time...')
-        self.__log.info(f'Started mapmaker process: {process.name}, PID: {process.process_id}')
+        self.__log.info(f'Started mapmaker process: {process.id}, PID: {process.process_id}')
 
 #===============================================================================
 #===============================================================================
