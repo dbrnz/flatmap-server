@@ -117,7 +117,7 @@ async def make_status_log(id: str) -> MakerLogResponse|Response:
     if map_maker is None:
         return Response(content={'error': 'unauthorized'}, status_code=403)
     log_data = await map_maker.get_status_log(id)
-    status = await map_maker.status(id)
+    status = map_maker.status(id)
     return MakerLogResponse(status.status, status.id, status.pid, log_data,  str(datetime.now()))
 
 @get('/status/{id:str}')
@@ -135,7 +135,7 @@ async def make_status(id: str) -> MakerStatus|Response:
     """
     if map_maker is None:
         return Response(content={'error': 'unauthorized'}, status_code=403)
-    status = await map_maker.status(id)
+    status = map_maker.status(id)
     return status
 
 #===============================================================================
@@ -157,7 +157,7 @@ async def maker_ws_log(socket: WebSocket) -> None:
             id = msg['id']
             running = True
             while running and not should_stop.is_set():
-                status = await map_maker.status(id)
+                status = map_maker.status(id)
                 if status.status == 'queued':
                     await socket.send_json({
                         'id': status.id,
@@ -170,7 +170,7 @@ async def maker_ws_log(socket: WebSocket) -> None:
                     return
                 else:
                     async for log_msg in map_maker.get_process_log(id):
-                        status = await map_maker.status(id)
+                        status = map_maker.status(id)
                         await socket.send_json({
                             'id': status.id,
                             'status': status.status,
