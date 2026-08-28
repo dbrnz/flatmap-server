@@ -30,7 +30,10 @@ from typing import Any
 from landez.sources import MBTilesReader, ExtractionError, InvalidFormatError
 
 from litestar import get, MediaType, Request, Response, Router
+from litestar.config.compression import CompressionConfig
 from litestar.exceptions import HTTPException, NotFoundException
+from litestar.middleware import DefineMiddleware
+from litestar.middleware.compression import CompressionMiddleware
 from litestar.response import File
 from litestar.status_codes import HTTP_206_PARTIAL_CONTENT, HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE
 
@@ -258,7 +261,57 @@ async def flatmap_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response
         tile_bytes = tile_reader.tile(z, x, y)
         if get_metadata(tile_reader, 'compressed'):
             tile_bytes = gzip.decompress(tile_bytes)
-        return Response(content=tile_bytes, media_type='application/octet-stream')
+        return Response(
+            content=tile_bytes,
+            headers={
+                'Content-Type': 'application/vnd.mapbox-vector-tile'
+            })
+    except ExtractionError:
+        pass
+    except (InvalidFormatError, sqlite3.OperationalError):
+        raise NotFoundException(detail='Cannot read tile database')
+    return Response(content='', status_code=204)
+
+brotli_compression_config = CompressionConfig(backend='brotli', minimum_size=100)
+brotli_compress_tiles = DefineMiddleware(CompressionMiddleware, config=brotli_compression_config)
+
+@get('flatmap/{map_uuid:str}/brtiles/{z:int}/{x:int}/{y:int}', middleware=[brotli_compress_tiles])
+async def flatmap_brotli_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
+    try:
+        mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
+        tile_reader = MBTilesReader(mbtiles)
+        tile_bytes = tile_reader.tile(z, x, y)
+        if get_metadata(tile_reader, 'compressed'):
+            tile_bytes = gzip.decompress(tile_bytes)
+        return Response(
+            content=tile_bytes,
+            headers={
+                'Content-Type': 'application/vnd.mapbox-vector-tile',
+                'Content-Encoding': 'br'
+            })
+    except ExtractionError:
+        pass
+    except (InvalidFormatError, sqlite3.OperationalError):
+        raise NotFoundException(detail='Cannot read tile database')
+    return Response(content='', status_code=204)
+
+gzip_compression_config = CompressionConfig(backend='gzip', minimum_size=100)
+gzip_compress_tiles = DefineMiddleware(CompressionMiddleware, config=gzip_compression_config)
+
+@get('flatmap/{map_uuid:str}/gztiles/{z:int}/{x:int}/{y:int}', middleware=[gzip_compress_tiles])
+async def flatmap_gzip_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
+    try:
+        mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
+        tile_reader = MBTilesReader(mbtiles)
+        tile_bytes = tile_reader.tile(z, x, y)
+        if get_metadata(tile_reader, 'compressed'):
+            tile_bytes = gzip.decompress(tile_bytes)
+        return Response(
+            content=tile_bytes,
+            headers={
+                'Content-Type': 'application/vnd.mapbox-vector-tile',
+                'Content-Encoding': 'gzip'
+            })
     except ExtractionError:
         pass
     except (InvalidFormatError, sqlite3.OperationalError):
@@ -373,7 +426,9 @@ flatmap_router = Router(
         flatmap_connectivity,
         flatmap_style,
         flatmap_termgraph,
-        flatmap_vector_tiles
+        flatmap_vector_tiles,
+        flatmap_brotli_vector_tiles,
+        flatmap_gzip_vector_tiles
     ]
 )
 
