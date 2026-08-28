@@ -131,12 +131,17 @@ async def flatmap_index(request: Request, map_uuid: str) -> dict|Response:
         return Response(content={'detail': 'Missing map index'}, status_code=404)
     with open(index_file) as fp:
         index = json.load(fp)
+    knowledge = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.ttl'
+    if knowledge.exists():
+        # Indicate that the map has RDF knowledge.
+        index['rdf'] = f'{request.base_url}{FLATMAP_PATH_PREFIX}/{map_uuid}/index.ttl'
+    else:
+        index.pop('rdf', None)
     accept_mediatype = request.headers.get('accept', '*/*')
     if 'text/turtle' in accept_mediatype:
-        # Return RDF knowledge (as Turtle) about the map.
-        knowledge = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.ttl'
-        if not knowledge.exists():
+        if 'rdf' not in index:
             return Response(content={'detail': 'RDF knowledge is not available'}, status_code=404)
+        # Return RDF knowledge about the map.
         with open(knowledge) as fp:
             return Response(content=fp.read(), media_type='text/turtle')
     elif 'json' not in request.headers.get('accept', '*/*'):
