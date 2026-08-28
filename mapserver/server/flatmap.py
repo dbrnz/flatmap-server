@@ -34,6 +34,7 @@ from litestar.config.compression import CompressionConfig
 from litestar.exceptions import HTTPException, NotFoundException
 from litestar.middleware import DefineMiddleware
 from litestar.middleware.compression import CompressionMiddleware
+from litestar.params import FromQuery
 from litestar.response import File
 from litestar.status_codes import HTTP_206_PARTIAL_CONTENT, HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE
 
@@ -112,7 +113,7 @@ async def flatmap_maps(request: Request) -> list:
 #===============================================================================
 
 @get('flatmap/{map_uuid:str}/')
-async def flatmap_index(request: Request, map_uuid: str) -> dict|Response:
+async def flatmap_index(request: Request, map_uuid: str, extras: FromQuery[str]='') -> dict|Response:
     """
     Return a representation of a flatmap.
 
@@ -151,6 +152,23 @@ async def flatmap_index(request: Request, map_uuid: str) -> dict|Response:
         if svg_file.exists():
             with open(svg_file) as fp:
                 return Response(content=fp.read(), media_type='image/svg+xml')
+
+    if len(extras):
+        # Add optional extra entries to returned index
+        extra_entries = extras.split(';')
+        for entry in extra_entries:
+            if   entry == 'mapAnnotations':
+                index[entry] = json_map_metadata(map_uuid, 'annotations')
+            elif entry == 'mapLayers':
+                index[entry] = json_map_metadata(map_uuid, 'layers')
+            elif entry == 'mapMetadata':
+                index[entry] = json_map_metadata(map_uuid, 'metadata')
+            elif entry == 'mapPathways':
+                index[entry] = pathways(map_uuid)
+            elif entry == 'mapStyle':
+                path = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'style.json'
+                with open(path) as fp:
+                    index[entry] = json.load(fp)
     return index
 
 #===============================================================================
