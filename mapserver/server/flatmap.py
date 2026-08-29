@@ -91,6 +91,14 @@ def blank_tile():
 #===============================================================================
 #===============================================================================
 
+brotli_config = CompressionConfig(backend='brotli', minimum_size=100)
+brotli_compression = DefineMiddleware(CompressionMiddleware, config=brotli_config)
+
+gzip_config = CompressionConfig(backend='gzip', minimum_size=100)
+gzip_compression = DefineMiddleware(CompressionMiddleware, config=gzip_config)
+
+#===============================================================================
+
 @get('/')
 async def flatmap_maps(request: Request) -> list:
     """
@@ -295,10 +303,7 @@ async def flatmap_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response
         raise NotFoundException(detail='Cannot read tile database')
     return Response(content='', status_code=204)
 
-brotli_compression_config = CompressionConfig(backend='brotli', minimum_size=100)
-brotli_compress_tiles = DefineMiddleware(CompressionMiddleware, config=brotli_compression_config)
-
-@get('flatmap/{map_uuid:str}/brtiles/{z:int}/{x:int}/{y:int}', middleware=[brotli_compress_tiles])
+@get('flatmap/{map_uuid:str}/brtiles/{z:int}/{x:int}/{y:int}') #, middleware=[brotli_compression])
 async def flatmap_brotli_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
     try:
         mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
@@ -310,7 +315,7 @@ async def flatmap_brotli_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> R
             content=tile_bytes,
             headers={
                 'Content-Type': 'application/vnd.mapbox-vector-tile',
-                'Content-Encoding': 'br'
+#                'Content-Encoding': 'br'
             })
     except ExtractionError:
         pass
@@ -318,10 +323,7 @@ async def flatmap_brotli_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> R
         raise NotFoundException(detail='Cannot read tile database')
     return Response(content='', status_code=204)
 
-gzip_compression_config = CompressionConfig(backend='gzip', minimum_size=100)
-gzip_compress_tiles = DefineMiddleware(CompressionMiddleware, config=gzip_compression_config)
-
-@get('flatmap/{map_uuid:str}/gztiles/{z:int}/{x:int}/{y:int}', middleware=[gzip_compress_tiles])
+@get('flatmap/{map_uuid:str}/gztiles/{z:int}/{x:int}/{y:int}') #, middleware=[gzip_compression])
 async def flatmap_gzip_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
     try:
         mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
@@ -333,7 +335,7 @@ async def flatmap_gzip_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Res
             content=tile_bytes,
             headers={
                 'Content-Type': 'application/vnd.mapbox-vector-tile',
-                'Content-Encoding': 'gzip'
+#                'Content-Encoding': 'gzip'
             })
     except ExtractionError:
         pass
@@ -435,6 +437,7 @@ async def flatmap_termgraph(map_uuid: str) -> dict:
 
 flatmap_router = Router(
     path="/",
+    middleware=[brotli_compression],
     route_handlers=[
         flatmap_annotation,
         flatmap_get_pmtiles,
