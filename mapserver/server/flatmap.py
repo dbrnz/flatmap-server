@@ -160,7 +160,6 @@ async def flatmap_index(request: Request, map_uuid: str, extras: FromQuery[str]=
         if svg_file.exists():
             with open(svg_file) as fp:
                 return Response(content=fp.read(), media_type='image/svg+xml')
-
     if len(extras):
         # Add optional extra entries to returned index
         extra_entries = extras.split(';')
