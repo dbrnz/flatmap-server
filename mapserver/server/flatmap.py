@@ -91,14 +91,6 @@ def blank_tile():
 #===============================================================================
 #===============================================================================
 
-brotli_config = CompressionConfig(backend='brotli', minimum_size=100)
-brotli_compression = DefineMiddleware(CompressionMiddleware, config=brotli_config)
-
-gzip_config = CompressionConfig(backend='gzip', minimum_size=100)
-gzip_compression = DefineMiddleware(CompressionMiddleware, config=gzip_config)
-
-#===============================================================================
-
 @get('/')
 async def flatmap_maps(request: Request) -> list:
     """
@@ -302,46 +294,6 @@ async def flatmap_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response
         raise NotFoundException(detail='Cannot read tile database')
     return Response(content='', status_code=204)
 
-@get('flatmap/{map_uuid:str}/brtiles/{z:int}/{x:int}/{y:int}') #, middleware=[brotli_compression])
-async def flatmap_brotli_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
-    try:
-        mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
-        tile_reader = MBTilesReader(mbtiles)
-        tile_bytes = tile_reader.tile(z, x, y)
-        if get_metadata(tile_reader, 'compressed'):
-            tile_bytes = gzip.decompress(tile_bytes)
-        return Response(
-            content=tile_bytes,
-            headers={
-                'Content-Type': 'application/vnd.mapbox-vector-tile',
-#                'Content-Encoding': 'br'
-            })
-    except ExtractionError:
-        pass
-    except (InvalidFormatError, sqlite3.OperationalError):
-        raise NotFoundException(detail='Cannot read tile database')
-    return Response(content='', status_code=204)
-
-@get('flatmap/{map_uuid:str}/gztiles/{z:int}/{x:int}/{y:int}') #, middleware=[gzip_compression])
-async def flatmap_gzip_vector_tiles(map_uuid: str, z: int, y:int, x: int) -> Response:
-    try:
-        mbtiles = pathlib.Path(settings['FLATMAP_ROOT']) / map_uuid / 'index.mbtiles'
-        tile_reader = MBTilesReader(mbtiles)
-        tile_bytes = tile_reader.tile(z, x, y)
-        if get_metadata(tile_reader, 'compressed'):
-            tile_bytes = gzip.decompress(tile_bytes)
-        return Response(
-            content=tile_bytes,
-            headers={
-                'Content-Type': 'application/vnd.mapbox-vector-tile',
-#                'Content-Encoding': 'gzip'
-            })
-    except ExtractionError:
-        pass
-    except (InvalidFormatError, sqlite3.OperationalError):
-        raise NotFoundException(detail='Cannot read tile database')
-    return Response(content='', status_code=204)
-
 #===============================================================================
 
 def parse_range_header(header_value: str, file_size: int) -> tuple[int, int]:
@@ -434,6 +386,9 @@ async def flatmap_termgraph(map_uuid: str) -> dict:
 #===============================================================================
 #===============================================================================
 
+brotli_config = CompressionConfig(backend='brotli', minimum_size=100)
+brotli_compression = DefineMiddleware(CompressionMiddleware, config=brotli_config)
+
 flatmap_router = Router(
     path="/",
     middleware=[brotli_compression],
@@ -451,9 +406,7 @@ flatmap_router = Router(
         flatmap_connectivity,
         flatmap_style,
         flatmap_termgraph,
-        flatmap_vector_tiles,
-        flatmap_brotli_vector_tiles,
-        flatmap_gzip_vector_tiles
+        flatmap_vector_tiles
     ]
 )
 
