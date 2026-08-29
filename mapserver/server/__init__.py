@@ -145,7 +145,7 @@ app = Litestar(
     route_handlers=route_handlers,
     cors_config=CORSConfig(
         allow_origins=["*"],
-        allow_methods=["GET", "OPTIONS"],
+        allow_methods=["GET", "OPTIONS", "POST"],
         # MapLibre needs to inspect Content-Range headers when getting PMTiles
         expose_headers=["Content-Range", "Content-Length", "Accept-Ranges"]
     ),
